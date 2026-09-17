@@ -1,0 +1,1494 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>IMU Data Labeling Tool</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                background: #1a1a2e;
+                color: #eee;
+            }
+            .container {
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+            }
+            .header {
+                background: #16213e;
+                padding: 12px 20px;
+                border-bottom: 1px solid #0f3460;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .header h1 {
+                font-size: 18px;
+                color: #e94560;
+            }
+            .header .info {
+                font-size: 12px;
+                color: #888;
+                display: flex;
+                gap: 8px;
+            }
+            .main {
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+            .left-panel {
+                flex: 2;
+                display: flex;
+                flex-direction: column;
+                border-right: 1px solid #0f3460;
+                overflow: hidden;
+            }
+            .video-container {
+                flex: 1;
+                background: #000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+            }
+            .video-container video {
+                max-width: 100%;
+                max-height: 100%;
+            }
+            .video-controls {
+                background: #16213e;
+                padding: 10px 20px;
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                border-top: 1px solid #0f3460;
+            }
+            .video-controls button {
+                background: #0f3460;
+                border: none;
+                color: #eee;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            .video-controls button:hover {
+                background: #e94560;
+            }
+            .video-controls button.active {
+                background: #e94560;
+            }
+            .video-controls button.set-btn {
+                background: #4caf50;
+            }
+            .video-controls button.set-btn:hover {
+                background: #45a049;
+            }
+            .video-controls button.clear-btn {
+                background: #f44336;
+            }
+            .video-controls button.clear-btn:hover {
+                background: #d32f2f;
+            }
+            .video-controls input[type="range"] {
+                flex: 1;
+            }
+            .video-controls .time {
+                font-size: 12px;
+                color: #888;
+                min-width: 80px;
+            }
+            .video-controls .span-display {
+                font-size: 11px;
+                color: #4caf50;
+                background: #0f3460;
+                padding: 4px 8px;
+                border-radius: 3px;
+            }
+            .sensor-panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .sensor-row {
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                border-bottom: 1px solid #0f3460;
+            }
+            .sensor-box {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                border-right: none;
+                min-height: 0;
+            }
+            .sensor-header {
+                background: #16213e;
+                padding: 6px 10px;
+                font-size: 11px;
+                color: #888;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .sensor-value {
+                padding: 8px 10px;
+                font-size: 20px;
+                font-weight: bold;
+                color: #e94560;
+            }
+            .sensor-range {
+                padding: 0 10px 6px;
+                font-size: 10px;
+                color: #666;
+            }
+            .sensor-chart {
+                flex: none;
+                height: 150px;
+                padding: 5px;
+                min-height: 60px;
+            }
+            .sensor-chart canvas {
+                width: 100%;
+                height: 100%;
+            }
+            .right-panel {
+                width: 320px;
+                display: flex;
+                flex-direction: column;
+                background: #16213e;
+            }
+            .annotation-section {
+                padding: 15px;
+                border-bottom: 1px solid #0f3460;
+            }
+            .annotation-section h3 {
+                font-size: 13px;
+                color: #888;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .activity-buttons {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .activity-btn {
+                padding: 10px 16px;
+                border: 2px solid #333;
+                background: transparent;
+                color: #eee;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                transition: all 0.2s;
+            }
+            .activity-btn:hover {
+                border-color: #666;
+            }
+            .activity-btn.selected {
+                border-color: #e94560;
+                background: #e94560;
+            }
+            .activity-btn.walking {
+                border-color: #4caf50;
+            }
+            .activity-btn.walking.selected {
+                background: #4caf50;
+            }
+            .activity-btn.idle {
+                border-color: #2196f3;
+            }
+            .activity-btn.idle.selected {
+                background: #2196f3;
+            }
+            .activity-btn.running {
+                border-color: #f44336;
+            }
+            .activity-btn.running.selected {
+                background: #f44336;
+            }
+            .input-group {
+                margin-bottom: 12px;
+            }
+            .input-group label {
+                display: block;
+                font-size: 11px;
+                color: #888;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+            }
+            .input-group input,
+            .input-group textarea {
+                width: 100%;
+                background: #0f3460;
+                border: 1px solid #333;
+                color: #eee;
+                padding: 8px 10px;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+            .input-group textarea {
+                resize: vertical;
+                min-height: 60px;
+            }
+            .confidence-slider {
+                width: 100%;
+                margin: 5px 0;
+            }
+            .confidence-value {
+                text-align: center;
+                font-size: 24px;
+                font-weight: bold;
+                color: #e94560;
+            }
+            .annotations-list {
+                flex: 1;
+                overflow-y: auto;
+                padding: 10px;
+            }
+            .annotation-item {
+                background: #0f3460;
+                border-radius: 6px;
+                padding: 10px;
+                margin-bottom: 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .annotation-item:hover {
+                background: #1a1a4e;
+            }
+            .annotation-item .activity {
+                font-weight: bold;
+                margin-bottom: 4px;
+            }
+            .annotation-item .activity.walking {
+                color: #4caf50;
+            }
+            .annotation-item .activity.idle {
+                color: #2196f3;
+            }
+            .annotation-item .activity.running {
+                color: #f44336;
+            }
+            .annotation-item .time {
+                font-size: 11px;
+                color: #888;
+            }
+            .annotation-item .time-range {
+                font-size: 12px;
+                color: #4caf50;
+                font-weight: bold;
+            }
+            .annotation-item .notes {
+                font-size: 12px;
+                color: #aaa;
+                margin-top: 4px;
+            }
+            .annotation-item .delete {
+                float: right;
+                background: none;
+                border: none;
+                color: #e94560;
+                cursor: pointer;
+                font-size: 16px;
+            }
+            .export-buttons {
+                display: flex;
+                gap: 8px;
+                margin-top: 10px;
+            }
+            .export-btn {
+                flex: 1;
+                background: #4caf50;
+                border: none;
+                color: white;
+                padding: 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .export-btn:hover {
+                background: #45a049;
+            }
+            .export-btn.json {
+                background: #2196f3;
+            }
+            .export-btn.json:hover {
+                background: #1976d2;
+            }
+            .timeline-container {
+                background: #16213e;
+                padding: 10px 6px;
+                border-top: 1px solid #0f3460;
+                width: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+            .timeline-labels {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 5px;
+            }
+            .timeline-label {
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .timeline-label .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+            }
+            .timeline {
+                height: 40px;
+                background: #0f3460;
+                border-radius: 4px;
+                position: relative;
+                cursor: pointer;
+            }
+            .timeline-marker {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                width: 3px;
+                background: #e94560;
+                transform: translateX(-50%);
+                pointer-events: none;
+                z-index: 10;
+            }
+            .timeline-span {
+                position: absolute;
+                top: 2px;
+                bottom: 2px;
+                border-radius: 3px;
+                opacity: 0.8;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 9px;
+                color: white;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            }
+            .timeline-cut-marker {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                background: #ff9800;
+                transform: translateX(-50%);
+                pointer-events: none;
+                z-index: 5;
+            }
+            .timeline-cut-marker::after {
+                content: "CUT";
+                position: absolute;
+                top: -14px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 8px;
+                color: #ff9800;
+                white-space: nowrap;
+            }
+            .file-input {
+                display: none;
+            }
+            .load-btn {
+                background: #0f3460;
+                border: 1px solid #333;
+                color: #eee;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .load-btn:hover {
+                background: #1a1a4e;
+            }
+            .toast {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: #f44336;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                z-index: 1000;
+                opacity: 0;
+                transform: translateY(20px);
+                transition: all 0.3s;
+                pointer-events: none;
+            }
+            .toast.show {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            .keyboard-hint {
+                font-size: 10px;
+                color: #555;
+                padding: 8px;
+                text-align: center;
+                border-top: 1px solid #0f3460;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>IMU Data Labeling Tool</h1>
+                <div class="info">
+                    <label class="load-btn">
+                        Load Video
+                        <input
+                            type="file"
+                            id="videoInput"
+                            accept="video/*"
+                            class="file-input"
+                        />
+                    </label>
+                    <label class="load-btn">
+                        Load CSV
+                        <input
+                            type="file"
+                            id="csvInput"
+                            accept=".csv"
+                            class="file-input"
+                        />
+                    </label>
+                </div>
+            </div>
+
+            <div class="main">
+                <div class="left-panel">
+                    <div class="video-container">
+                        <video id="video" crossorigin="anonymous"></video>
+                    </div>
+
+                    <div class="video-controls">
+                        <button id="playBtn">Play (Space)</button>
+                        <button id="prevFrame">◀◀</button>
+                        <button id="nextFrame">▶▶</button>
+                        <input
+                            type="range"
+                            id="seekBar"
+                            min="0"
+                            max="100"
+                            value="0"
+                            step="0.1"
+                        />
+                        <span class="time" id="timeDisplay">0:00 / 0:00</span>
+                        <button id="setStart" class="set-btn">
+                            Set Start (S)
+                        </button>
+                        <button id="setEnd" class="set-btn">Set End (D)</button>
+                        <button id="clearSpan" class="clear-btn">
+                            Clear (C)
+                        </button>
+                        <button
+                            id="cutBtn"
+                            class="set-btn"
+                            style="background: #ff9800"
+                        >
+                            Cut Here (X)
+                        </button>
+                        <button
+                            id="confirmCut"
+                            class="clear-btn"
+                            style="display: none"
+                        >
+                            Confirm Cut
+                        </button>
+                        <button
+                            id="cancelCut"
+                            class="clear-btn"
+                            style="display: none; background: #666"
+                        >
+                            Cancel
+                        </button>
+                        <span
+                            id="cutStatus"
+                            style="font-size: 11px; color: #888"
+                            >No cut set</span
+                        >
+                        <span class="span-display" id="spanDisplay"
+                            >No span</span
+                        >
+                    </div>
+
+                    <div class="sensor-panel">
+                        <div class="sensor-row">
+                            <div class="sensor-box">
+                                <div class="sensor-header">
+                                    Accel Magnitude (m/s²)
+                                </div>
+                                <div class="sensor-value" id="accelValue">
+                                    --
+                                </div>
+                                <div class="sensor-range" id="accelRange">
+                                    min: -- | max: --
+                                </div>
+                                <div class="sensor-chart">
+                                    <canvas id="accelChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="sensor-box">
+                                <div class="sensor-header">
+                                    Gyro Magnitude (°/s)
+                                </div>
+                                <div class="sensor-value" id="gyroValue">
+                                    --
+                                </div>
+                                <div class="sensor-range" id="gyroRange">
+                                    min: -- | max: --
+                                </div>
+                                <div class="sensor-chart">
+                                    <canvas id="gyroChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="timeline-container">
+                        <div class="timeline-labels">
+                            <div class="timeline-label">
+                                <span
+                                    class="dot"
+                                    style="background: #4caf50"
+                                ></span>
+                                Walking
+                            </div>
+                            <div class="timeline-label">
+                                <span
+                                    class="dot"
+                                    style="background: #2196f3"
+                                ></span>
+                                Idle
+                            </div>
+                            <div class="timeline-label">
+                                <span
+                                    class="dot"
+                                    style="background: #f44336"
+                                ></span>
+                                Running
+                            </div>
+                            <div class="timeline-label">
+                                <span
+                                    class="dot"
+                                    style="background: #ff9800"
+                                ></span>
+                                Video Cut
+                            </div>
+                        </div>
+                        <div class="timeline" id="timeline">
+                            <div
+                                class="timeline-marker"
+                                id="timelineMarker"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <div class="annotation-section">
+                        <h3>Activity Label</h3>
+                        <div class="activity-buttons">
+                            <button
+                                class="activity-btn walking"
+                                data-activity="Walking"
+                            >
+                                Walking (1)
+                            </button>
+                            <button
+                                class="activity-btn idle"
+                                data-activity="Idle"
+                            >
+                                Idle (2)
+                            </button>
+                            <button
+                                class="activity-btn running"
+                                data-activity="Running"
+                            >
+                                Running (3)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="annotation-section">
+                        <h3>Confidence</h3>
+                        <div class="confidence-value" id="confidenceValue">
+                            80
+                        </div>
+                        <input
+                            type="range"
+                            class="confidence-slider"
+                            id="confidenceSlider"
+                            min="1"
+                            max="100"
+                            value="80"
+                        />
+                    </div>
+
+                    <div class="annotation-section">
+                        <h3>Notes</h3>
+                        <div class="input-group">
+                            <textarea
+                                id="notesInput"
+                                placeholder="Add notes about this segment..."
+                            ></textarea>
+                        </div>
+                        <button id="addAnnotation" class="export-btn">
+                            Add Annotation (Enter)
+                        </button>
+                    </div>
+
+                    <div
+                        class="annotation-section"
+                        style="
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
+                            overflow: hidden;
+                        "
+                    >
+                        <h3>
+                            Annotations (<span id="annotationCount">0</span>)
+                        </h3>
+                        <div
+                            class="annotations-list"
+                            id="annotationsList"
+                        ></div>
+                        <div class="export-buttons">
+                            <button id="exportCSV" class="export-btn">
+                                Export CSV
+                            </button>
+                            <button id="exportJSON" class="export-btn json">
+                                Export JSON
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="keyboard-hint">
+                        Space: Play | 1/2/3: Label | S/D: Start/End | C: Clear |
+                        Enter: Add | X: Cut Video
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="toast" id="toast"></div>
+
+        <script>
+            // State
+            let imuData = { accel: [], gyro: [], temp: [], jerk: [], raw: [] };
+            let annotations = [];
+            let selectedActivity = null;
+            let videoDuration = 0;
+            let spanStart = null;
+            let spanEnd = null;
+            let inputFileName = "user";
+            let videoCutPoint = null;
+            let pendingCutType = null;
+            const toast = document.getElementById("toast");
+
+            function showToast(message) {
+                toast.textContent = message;
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 3000);
+            }
+
+            function checkOverlap(start, end) {
+                for (const a of annotations) {
+                    if (start < a.endTime && end > a.startTime) {
+                        return a;
+                    }
+                }
+                return null;
+            }
+
+            function setCutPoint() {
+                if (!videoDuration) {
+                    showToast("Load video first");
+                    return;
+                }
+                pendingCutType = "video";
+                document.getElementById("confirmCut").style.display = "";
+                document.getElementById("cancelCut").style.display = "";
+                document.getElementById("cutStatus").textContent =
+                    `Cut at ${formatTime(video.currentTime)} - Confirm?`;
+                document.getElementById("cutStatus").style.color = "#FF9800";
+            }
+
+            function confirmCutAction() {
+                if (!pendingCutType) return;
+                const cutTime = video.currentTime;
+                videoCutPoint = cutTime;
+                video.currentTime = cutTime;
+                showToast(
+                    `Video cut at ${formatTime(cutTime)} - playing from here`,
+                );
+                document.getElementById("cutStatus").textContent =
+                    `Cut at ${formatTime(cutTime)}`;
+                document.getElementById("cutStatus").style.color = "#4CAF50";
+                cancelCut();
+            }
+
+            function cancelCut() {
+                pendingCutType = null;
+                document.getElementById("confirmCut").style.display = "none";
+                document.getElementById("cancelCut").style.display = "none";
+            }
+
+            function getVideoStart() {
+                return videoCutPoint || 0;
+            }
+
+            function getVideoEnd() {
+                return videoDuration;
+            }
+
+            function getTrimmedDuration() {
+                return getVideoEnd() - getVideoStart();
+            }
+
+            function clampToTrimmedRange(time) {
+                return Math.max(getVideoStart(), Math.min(time, getVideoEnd()));
+            }
+
+            function getTimelineDuration() {
+                if (imuData.raw.length > 0) {
+                    const imuEnd = imuData.raw[imuData.raw.length - 1].time;
+                    const imuStart = imuData.raw[0].time;
+                    return imuEnd - imuStart;
+                }
+                return videoDuration;
+            }
+
+            function getTimelineStart() {
+                if (imuData.raw.length > 0) {
+                    return imuData.raw[0].time;
+                }
+                return 0;
+            }
+
+            // Elements
+            const video = document.getElementById("video");
+            const playBtn = document.getElementById("playBtn");
+            const prevFrame = document.getElementById("prevFrame");
+            const nextFrame = document.getElementById("nextFrame");
+            const seekBar = document.getElementById("seekBar");
+            const timeDisplay = document.getElementById("timeDisplay");
+            const timeline = document.getElementById("timeline");
+            const timelineMarker = document.getElementById("timelineMarker");
+            const confidenceSlider =
+                document.getElementById("confidenceSlider");
+            const confidenceValue = document.getElementById("confidenceValue");
+            const spanDisplay = document.getElementById("spanDisplay");
+
+            // Charts
+            const charts = {
+                accel: document.getElementById("accelChart"),
+                gyro: document.getElementById("gyroChart"),
+            };
+
+            function init() {
+                setupEventListeners();
+                drawEmptyCharts();
+            }
+
+            function setupEventListeners() {
+                playBtn.addEventListener("click", togglePlay);
+                prevFrame.addEventListener("click", () => stepFrame(-1));
+                nextFrame.addEventListener("click", () => stepFrame(1));
+                seekBar.addEventListener("input", seekVideo);
+
+                video.addEventListener("timeupdate", () => {
+                    if (video.currentTime < getVideoStart()) {
+                        video.currentTime = getVideoStart();
+                    }
+                    updateTimeDisplay();
+                });
+                video.addEventListener("loadedmetadata", () => {
+                    videoDuration = video.duration;
+                    updateTimeDisplay();
+                });
+
+                document
+                    .getElementById("videoInput")
+                    .addEventListener("change", loadVideo);
+                document
+                    .getElementById("csvInput")
+                    .addEventListener("change", loadCSV);
+
+                document.querySelectorAll(".activity-btn").forEach((btn) => {
+                    btn.addEventListener("click", () =>
+                        selectActivity(btn.dataset.activity),
+                    );
+                });
+
+                confidenceSlider.addEventListener("input", () => {
+                    confidenceValue.textContent = confidenceSlider.value;
+                });
+
+                document
+                    .getElementById("setStart")
+                    .addEventListener("click", () => setSpanStart());
+                document
+                    .getElementById("setEnd")
+                    .addEventListener("click", () => setSpanEnd());
+                document
+                    .getElementById("clearSpan")
+                    .addEventListener("click", clearSpan);
+                document
+                    .getElementById("cutBtn")
+                    .addEventListener("click", setCutPoint);
+                document
+                    .getElementById("confirmCut")
+                    .addEventListener("click", confirmCutAction);
+                document
+                    .getElementById("cancelCut")
+                    .addEventListener("click", cancelCut);
+                document
+                    .getElementById("addAnnotation")
+                    .addEventListener("click", addAnnotation);
+                document
+                    .getElementById("exportCSV")
+                    .addEventListener("click", exportCSV);
+                document
+                    .getElementById("exportJSON")
+                    .addEventListener("click", exportJSON);
+
+                timeline.addEventListener("click", (e) => {
+                    const rect = timeline.getBoundingClientRect();
+                    const pos = (e.clientX - rect.left) / rect.width;
+                    const timelineDur = getTimelineDuration();
+                    const timelineStart = getTimelineStart();
+                    video.currentTime = clampToTrimmedRange(
+                        timelineStart + pos * timelineDur,
+                    );
+                });
+
+                document.addEventListener("keydown", handleKeyboard);
+            }
+
+            function togglePlay() {
+                if (video.paused) {
+                    if (video.currentTime < getVideoStart()) {
+                        video.currentTime = getVideoStart();
+                    }
+                    video.play();
+                    playBtn.textContent = "Pause";
+                } else {
+                    video.pause();
+                    playBtn.textContent = "Play";
+                }
+            }
+
+            function stepFrame(direction) {
+                video.pause();
+                const newTime = video.currentTime + direction * 0.1;
+                video.currentTime = clampToTrimmedRange(newTime);
+            }
+
+            function seekVideo() {
+                const trimmed = getTrimmedDuration();
+                if (trimmed <= 0) return;
+                video.currentTime =
+                    getVideoStart() + (seekBar.value / 100) * trimmed;
+            }
+
+            function formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                const ms = Math.floor((seconds % 1) * 10);
+                return `${mins}:${secs.toString().padStart(2, "0")}.${ms}`;
+            }
+
+            function updateTimeDisplay() {
+                const trimmed = getTrimmedDuration();
+                const relativeTime = video.currentTime - getVideoStart();
+                const current = formatTime(Math.max(0, relativeTime));
+                const total = formatTime(trimmed);
+                timeDisplay.textContent = `${current} / ${total}`;
+                if (trimmed > 0) {
+                    seekBar.value = (Math.max(0, relativeTime) / trimmed) * 100;
+                } else {
+                    seekBar.value = 0;
+                }
+                const timelineDur = getTimelineDuration();
+                const timelineStart = getTimelineStart();
+                timelineMarker.style.left = `${((video.currentTime - timelineStart) / timelineDur) * 100}%`;
+                updateSensorDisplay();
+                updateSpanDisplay();
+            }
+
+            function setSpanStart() {
+                const newStart = video.currentTime;
+                if (spanEnd !== null) {
+                    const start = Math.min(newStart, spanEnd);
+                    const end = Math.max(newStart, spanEnd);
+                    const overlap = checkOverlap(start, end);
+                    if (overlap) {
+                        showToast(
+                            `Overlaps with existing ${overlap.activity} annotation`,
+                        );
+                        return;
+                    }
+                }
+                spanStart = newStart;
+                updateSpanDisplay();
+                drawTimeline();
+            }
+
+            function setSpanEnd() {
+                const newEnd = video.currentTime;
+                if (spanStart !== null) {
+                    const start = Math.min(spanStart, newEnd);
+                    const end = Math.max(spanStart, newEnd);
+                    const overlap = checkOverlap(start, end);
+                    if (overlap) {
+                        showToast(
+                            `Overlaps with existing ${overlap.activity} annotation`,
+                        );
+                        return;
+                    }
+                }
+                spanEnd = newEnd;
+                if (spanStart !== null && spanEnd < spanStart) {
+                    [spanStart, spanEnd] = [spanEnd, spanStart];
+                }
+                updateSpanDisplay();
+                drawTimeline();
+            }
+
+            function clearSpan() {
+                spanStart = null;
+                spanEnd = null;
+                updateSpanDisplay();
+                drawTimeline();
+            }
+
+            function updateSpanDisplay() {
+                if (spanStart !== null && spanEnd !== null) {
+                    const duration = (spanEnd - spanStart).toFixed(2);
+                    spanDisplay.textContent = `${formatTime(spanStart)} - ${formatTime(spanEnd)} (${duration}s)`;
+                } else if (spanStart !== null) {
+                    spanDisplay.textContent = `Start: ${formatTime(spanStart)} - Set end`;
+                } else {
+                    spanDisplay.textContent = "No span";
+                }
+            }
+
+            function loadVideo(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    video.src = URL.createObjectURL(file);
+                    video.load();
+                }
+            }
+
+            function loadCSV(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                inputFileName = file.name.replace(/\.csv$/i, "");
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    parseCSV(event.target.result);
+                    computeDerivedData();
+                    updateStats();
+                    drawCharts();
+                };
+                reader.readAsText(file);
+            }
+
+            function parseCSV(csvText) {
+                const lines = csvText.trim().split("\n");
+                const headers = lines[0].split(",").map((h) => h.trim());
+
+                imuData = { accel: [], gyro: [], temp: [], jerk: [], raw: [] };
+
+                let firstTimestamp = null;
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(",").map((v) => v.trim());
+                    const row = {};
+                    headers.forEach((h, idx) => (row[h] = values[idx]));
+
+                    let time;
+                    if (row.timestamp) {
+                        const ts = new Date(row.timestamp);
+                        if (!firstTimestamp) firstTimestamp = ts;
+                        time = (ts - firstTimestamp) / 1000;
+                    } else {
+                        time = (i - 1) * 0.1;
+                    }
+
+                    imuData.raw.push({
+                        time,
+                        csvTime: row.timestamp || time.toFixed(3),
+                        ax: row.ax || "0",
+                        ay: row.ay || "0",
+                        az: row.az || "0",
+                        gx: row.gx || "0",
+                        gy: row.gy || "0",
+                        gz: row.gz || "0",
+                        temperature: row.temperature || "25",
+                    });
+                }
+            }
+
+            function computeDerivedData() {
+                imuData.accel = imuData.raw.map((r) => ({
+                    time: r.time,
+                    value: Math.sqrt(r.ax ** 2 + r.ay ** 2 + r.az ** 2),
+                }));
+
+                imuData.gyro = imuData.raw.map((r) => ({
+                    time: r.time,
+                    value: Math.sqrt(r.gx ** 2 + r.gy ** 2 + r.gz ** 2),
+                }));
+
+                imuData.temp = imuData.raw.map((r) => ({
+                    time: r.time,
+                    value: r.temperature,
+                }));
+
+                imuData.jerk = [];
+                for (let i = 1; i < imuData.raw.length; i++) {
+                    const dt = imuData.raw[i].time - imuData.raw[i - 1].time;
+                    if (dt > 0) {
+                        const dAccel = Math.sqrt(
+                            (imuData.raw[i].ax - imuData.raw[i - 1].ax) ** 2 +
+                                (imuData.raw[i].ay - imuData.raw[i - 1].ay) **
+                                    2 +
+                                (imuData.raw[i].az - imuData.raw[i - 1].az) **
+                                    2,
+                        );
+                        imuData.jerk.push({
+                            time: imuData.raw[i].time,
+                            value: dAccel / dt,
+                        });
+                    }
+                }
+            }
+
+            function updateStats() {
+                updateStatDisplay("accel", imuData.accel);
+                updateStatDisplay("gyro", imuData.gyro);
+            }
+
+            function updateStatDisplay(type, data) {
+                if (!data.length) return;
+                const values = data.map((d) => d.value);
+                const min = Math.min(...values).toFixed(2);
+                const max = Math.max(...values).toFixed(2);
+                const avg = (
+                    values.reduce((a, b) => a + b, 0) / values.length
+                ).toFixed(2);
+
+                document.getElementById(`${type}Value`).textContent = avg;
+                document.getElementById(`${type}Range`).textContent =
+                    `min: ${min} | max: ${max}`;
+            }
+
+            function updateSensorDisplay() {
+                const time = video.currentTime;
+                const getValue = (data) => {
+                    if (!data.length) return "--";
+                    const closest = data.reduce((prev, curr) =>
+                        Math.abs(curr.time - time) < Math.abs(prev.time - time)
+                            ? curr
+                            : prev,
+                    );
+                    return closest.value.toFixed(2);
+                };
+
+                document.getElementById("accelValue").textContent = getValue(
+                    imuData.accel,
+                );
+                document.getElementById("gyroValue").textContent = getValue(
+                    imuData.gyro,
+                );
+            }
+
+            function drawEmptyCharts() {
+                Object.values(charts).forEach((canvas) => {
+                    const ctx = canvas.getContext("2d");
+                    canvas.width = canvas.parentElement.clientWidth;
+                    canvas.height = canvas.parentElement.clientHeight;
+                    ctx.fillStyle = "#0f3460";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#666";
+                    ctx.font = "11px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(
+                        "Load CSV to display",
+                        canvas.width / 2,
+                        canvas.height / 2,
+                    );
+                });
+            }
+
+            function drawCharts() {
+                drawChart(charts.accel, imuData.accel, "#e94560");
+                drawChart(charts.gyro, imuData.gyro, "#4CAF50");
+            }
+
+            function drawChart(canvas, data, color) {
+                const ctx = canvas.getContext("2d");
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+
+                if (!data.length) return;
+
+                const values = data.map((d) => d.value);
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                const range = max - min || 1;
+
+                const timelineDur = getTimelineDuration();
+                const timelineStart = getTimelineStart();
+
+                ctx.fillStyle = "#0f3460";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const barWidth = Math.max(1, canvas.width / data.length);
+
+                // Draw filled bars
+                data.forEach((d, i) => {
+                    const x =
+                        ((d.time - timelineStart) / timelineDur) * canvas.width;
+                    const barHeight =
+                        ((d.value - min) / range) * (canvas.height - 5);
+                    const y = canvas.height - barHeight;
+
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.4;
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                    ctx.globalAlpha = 1.0;
+                });
+
+                // Draw bar outlines on top
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+
+                data.forEach((d, i) => {
+                    const x =
+                        ((d.time - timelineStart) / timelineDur) * canvas.width;
+                    const barHeight =
+                        ((d.value - min) / range) * (canvas.height - 5);
+                    const y = canvas.height - barHeight;
+                    ctx.moveTo(x + barWidth / 2, y);
+                    ctx.lineTo(x + barWidth / 2, canvas.height);
+                });
+
+                ctx.stroke();
+
+                // Draw span highlight on chart
+
+                if (spanStart !== null && spanEnd !== null && timelineDur > 0) {
+                    const startX =
+                        ((spanStart - timelineStart) / timelineDur) *
+                        canvas.width;
+                    const endX =
+                        ((spanEnd - timelineStart) / timelineDur) *
+                        canvas.width;
+                    ctx.fillStyle = "rgba(76, 175, 80, 0.2)";
+                    ctx.fillRect(startX, 0, endX - startX, canvas.height);
+                }
+
+                // Current time marker
+                if (timelineDur > 0) {
+                    const markerX =
+                        ((video.currentTime - timelineStart) / timelineDur) *
+                        canvas.width;
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#fff";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.moveTo(markerX, 0);
+                    ctx.lineTo(markerX, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Cut point markers
+                if (videoCutPoint !== null && timelineDur > 0) {
+                    const cutX =
+                        ((videoCutPoint - timelineStart) / timelineDur) *
+                        canvas.width;
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#FF9800";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 3]);
+                    ctx.moveTo(cutX, 0);
+                    ctx.lineTo(cutX, canvas.height);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            function selectActivity(activity) {
+                selectedActivity = activity;
+                document.querySelectorAll(".activity-btn").forEach((btn) => {
+                    btn.classList.toggle(
+                        "selected",
+                        btn.dataset.activity === activity,
+                    );
+                });
+            }
+
+            function addAnnotation() {
+                if (!selectedActivity) {
+                    alert("Please select an activity first");
+                    return;
+                }
+
+                if (spanStart === null || spanEnd === null) {
+                    alert(
+                        "Please set both start and end times using the Set Start/Set End buttons",
+                    );
+                    return;
+                }
+
+                const annotation = {
+                    id: Date.now(),
+                    activity: selectedActivity,
+                    startTime: spanStart,
+                    endTime: spanEnd,
+                    confidence: parseInt(confidenceSlider.value),
+                    notes: document.getElementById("notesInput").value,
+                };
+
+                annotations.push(annotation);
+                annotations.sort((a, b) => a.startTime - b.startTime);
+
+                updateAnnotationsList();
+                drawTimeline();
+
+                // Clear inputs
+                document.getElementById("notesInput").value = "";
+                clearSpan();
+            }
+
+            function deleteAnnotation(id) {
+                annotations = annotations.filter((a) => a.id !== id);
+                updateAnnotationsList();
+                drawTimeline();
+            }
+
+            function updateAnnotationsList() {
+                const list = document.getElementById("annotationsList");
+                document.getElementById("annotationCount").textContent =
+                    annotations.length;
+
+                list.innerHTML = annotations
+                    .map((a) => {
+                        const duration = (a.endTime - a.startTime).toFixed(2);
+                        return `
+                    <div class="annotation-item" onclick="video.currentTime = ${a.startTime}">
+                        <button class="delete" onclick="event.stopPropagation(); deleteAnnotation(${a.id})">×</button>
+                        <div class="activity ${a.activity.toLowerCase()}">${a.activity}</div>
+                        <div class="time-range">${formatTime(a.startTime)} → ${formatTime(a.endTime)} (${duration}s)</div>
+                        <div class="time">Confidence: ${a.confidence}%</div>
+                        ${a.notes ? `<div class="notes">${a.notes}</div>` : ""}
+                    </div>
+                `;
+                    })
+                    .join("");
+            }
+
+            function drawTimeline() {
+                timeline
+                    .querySelectorAll(".timeline-span, .timeline-cut-marker")
+                    .forEach((el) => el.remove());
+
+                const colors = {
+                    Walking: "#4CAF50",
+                    Idle: "#2196F3",
+                    Running: "#F44336",
+                };
+
+                const timelineDur = getTimelineDuration();
+                const timelineStart = getTimelineStart();
+
+                annotations.forEach((a) => {
+                    const div = document.createElement("div");
+                    div.className = "timeline-span";
+                    const left =
+                        ((a.startTime - timelineStart) / timelineDur) * 100;
+                    const width =
+                        ((a.endTime - a.startTime) / timelineDur) * 100;
+                    div.style.left = `${left}%`;
+                    div.style.width = `${width}%`;
+                    div.style.background = colors[a.activity];
+                    div.textContent = a.activity[0];
+                    div.title = `${a.activity}: ${formatTime(a.startTime)} - ${formatTime(a.endTime)}`;
+                    timeline.appendChild(div);
+                });
+
+                if (videoCutPoint !== null && videoDuration > 0) {
+                    const div = document.createElement("div");
+                    div.className = "timeline-cut-marker";
+                    div.style.left = `${((videoCutPoint - timelineStart) / timelineDur) * 100}%`;
+                    div.title = `Video cut at ${formatTime(videoCutPoint)}`;
+                    timeline.appendChild(div);
+                }
+            }
+
+            function getIMUDataInSpan(startTime, endTime) {
+                return imuData.raw.filter(
+                    (d) => d.time >= startTime && d.time <= endTime,
+                );
+            }
+
+            function exportCSV() {
+                if (annotations.length === 0) {
+                    alert("No annotations to export");
+                    return;
+                }
+
+                let csvContent =
+                    "label,start_time,end_time,time,ax,ay,az,gx,gy,gz,temperature\n";
+
+                annotations.forEach((annotation) => {
+                    const spanData = getIMUDataInSpan(
+                        annotation.startTime,
+                        annotation.endTime,
+                    );
+
+                    if (spanData.length === 0) {
+                        csvContent += `${annotation.activity},${annotation.startTime.toFixed(3)},${annotation.endTime.toFixed(3)},,,,,,,,,\n`;
+                    } else {
+                        spanData.forEach((d, idx) => {
+                            csvContent += `${annotation.activity},${annotation.startTime.toFixed(3)},${annotation.endTime.toFixed(3)},${d.csvTime},${d.ax},${d.ay},${d.az},${d.gx},${d.gy},${d.gz},${d.temperature}\n`;
+                        });
+                    }
+                });
+
+                const blob = new Blob([csvContent], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = inputFileName + "_labelled.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function exportJSON() {
+                if (annotations.length === 0) {
+                    alert("No annotations to export");
+                    return;
+                }
+
+                const exportData = {
+                    videoFile: video.src
+                        ? video.src.split("/").pop()
+                        : "unknown",
+                    totalDuration: videoDuration,
+                    annotations: annotations.map((a) => {
+                        const spanData = getIMUDataInSpan(
+                            a.startTime,
+                            a.endTime,
+                        );
+                        return {
+                            label: a.activity,
+                            start_time: parseFloat(a.startTime.toFixed(3)),
+                            end_time: parseFloat(a.endTime.toFixed(3)),
+                            imu_data: spanData.map((d) => ({
+                                time: d.csvTime,
+                                ax: d.ax,
+                                ay: d.ay,
+                                az: d.az,
+                                gx: d.gx,
+                                gy: d.gy,
+                                gz: d.gz,
+                                temperature: d.temperature,
+                            })),
+                        };
+                    }),
+                };
+
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                    type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `imu_annotations_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function handleKeyboard(e) {
+                if (
+                    e.target.tagName === "INPUT" ||
+                    e.target.tagName === "TEXTAREA"
+                )
+                    return;
+
+                switch (e.key) {
+                    case " ":
+                        e.preventDefault();
+                        togglePlay();
+                        break;
+                    case "ArrowLeft":
+                        stepFrame(-1);
+                        break;
+                    case "ArrowRight":
+                        stepFrame(1);
+                        break;
+                    case "1":
+                        selectActivity("Walking");
+                        break;
+                    case "2":
+                        selectActivity("Idle");
+                        break;
+                    case "3":
+                        selectActivity("Running");
+                        break;
+                    case "s":
+                    case "S":
+                        setSpanStart();
+                        break;
+                    case "d":
+                    case "D":
+                        setSpanEnd();
+                        break;
+                    case "c":
+                    case "C":
+                        clearSpan();
+                        break;
+                    case "Enter":
+                        addAnnotation();
+                        break;
+                    case "x":
+                    case "X":
+                        setCutPoint();
+                        break;
+                }
+            }
+
+            window.addEventListener("resize", () => {
+                if (imuData.accel.length) drawCharts();
+                else drawEmptyCharts();
+            });
+
+            init();
+        </script>
+    </body>
+</html>
